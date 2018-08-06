@@ -1,28 +1,53 @@
 import pandas as pd
 import sqlite3
 import argparse
-
+import signal
+TIMEOUT = 10
 
 class DataProcess:
     def __init__(self, filename, crsr):
-        self.df = pd.read_csv(filename)
         self.name = filename[:-4]
-        crsr = crsr
+        self.crsr = crsr
+        try:
+            exist = self.crsr.execute("SELECT * FROM table1")
+        except Exception as e:
+            exist = None
 
-        self.df.columns = [col.replace(' ', '_').lower() for col in self.df.columns]
-        self.df.columns = [col.replace(':', '_').lower() for col in self.df.columns]
-        self.df.columns = [col.replace('.', '_').lower() for col in self.df.columns]
+        if exist is None:
+            self.df = pd.read_csv(filename)
 
-        columns = list(self.df.columns)
-        head = list(self.df.loc[0])
+            self.df.columns = [col.replace(' ', '_').lower() for col in self.df.columns]
+            self.df.columns = [col.replace(':', '_').lower() for col in self.df.columns]
+            self.df.columns = [col.replace('.', '_').lower() for col in self.df.columns]
 
-        q_sql1 = "CREATE TABLE table1 ( "
-        for i in range(len(columns)):
-            q_sql1 = q_sql1 + columns[i] + " " + self.typedetection(head[i]) + ", "
+            columns = list(self.df.columns)
+            head = list(self.df.loc[0])
 
-        q_sql1 = q_sql1[:-2] + ");"
+            q_sql1 = "CREATE TABLE table1 ( "
+            for i in range(len(columns)):
+                q_sql1 = q_sql1 + columns[i] + " " + self.typedetection(head[i]) + ", "
 
-        crsr.execute(q_sql1)
+            q_sql1 = q_sql1[:-2] + ");"
+
+            self.crsr.execute(q_sql1)
+        else:
+            pass
+
+        self.query()
+
+    def query(self):
+        print('\n[.] Query Mode Activated (Press Ctrl-C to Quit) [.]\n')
+        try:
+            while True:
+                qry = input(">>")
+                self.crsr.execute(qry)
+
+                rows = self.crsr.fetchall()
+                for row in rows:
+                    print(row, end=', ')
+
+        except KeyboardInterrupt:
+            pass
 
     @staticmethod
     def typedetection(val):
@@ -33,13 +58,34 @@ class DataProcess:
             return "varchar(255)"
 
 
+class TimeoutExpired(Exception):
+    pass
+
+def interrupted(signum, frame):
+    """called after time out"""
+    print('[!] Using default database name')
+    raise TimeoutExpired
+
+def input_value():
+    try:
+        print("[*] Type a database name ... (in 10 sec) Otherwise use default as 'mydb.db'")
+        name = input()
+        return name
+    except TimeoutExpired:
+        return "mydb.db"
+
 if __name__=="__main__":
     parser = argparse.ArgumentParser(description='')
     parser.add_argument("-f", "--file", help="filename")
 
     args = parser.parse_args()
 
-    connection = sqlite3.connect("myDB.db")
+    signal.signal(signal.SIGALRM, interrupted)
+    signal.alarm(TIMEOUT)
+    name = input_value()
+    signal.alarm(0)
+
+    connection = sqlite3.connect(name)
     crsr = connection.cursor()
 
     dp = DataProcess(args.file, crsr)
