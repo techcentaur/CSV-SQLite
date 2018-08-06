@@ -20,6 +20,7 @@ class DataProcess:
             self.df.columns = [col.replace(':', '_').lower() for col in self.df.columns]
             self.df.columns = [col.replace('.', '_').lower() for col in self.df.columns]
 
+            qmark = "?"
             columns = list(self.df.columns)
             head = list(self.df.loc[0])
 
@@ -30,10 +31,19 @@ class DataProcess:
             q_sql1 = q_sql1[:-2] + ");"
 
             self.crsr.execute(q_sql1)
+
+            for cols in range(1, len(columns)):
+                qmark += ",?"
+
+            for i in range(0, len(self.df)):
+                row_data = list(self.df.loc[i])
+
+                self.crsr.execute('''INSERT INTO table1 VALUES ({q})'''.format(q=qmark), row_data)
+
         else:
             pass
 
-        self.query()
+
 
     def query(self):
         print('\n[.] Query Mode Activated (Press Ctrl-C to Quit) [.]\n')
@@ -41,8 +51,10 @@ class DataProcess:
             while True:
                 qry = input(">>")
                 self.crsr.execute(qry)
-
+                print(qry)
                 rows = self.crsr.fetchall()
+                print(rows)
+                print(type(rows))
                 for row in rows:
                     print(row, end=', ')
 
@@ -89,6 +101,7 @@ if __name__=="__main__":
     crsr = connection.cursor()
 
     dp = DataProcess(args.file, crsr)
-
+    dp.query()
+    
     connection.commit()
     connection.close()
