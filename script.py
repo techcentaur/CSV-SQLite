@@ -51,13 +51,10 @@ class DataProcess:
             while True:
                 qry = input(">>")
                 self.crsr.execute(qry)
-                print(qry)
                 rows = self.crsr.fetchall()
-                print(rows)
-                print(type(rows))
                 for row in rows:
                     print(row, end=', ')
-
+                    pass
         except KeyboardInterrupt:
             pass
 
